@@ -138,7 +138,8 @@ CSC <- function(formula,
                 fitter="coxph",
                 ## strip.environment
                 ...){
-    fitter <- match.arg(fitter,c("coxph","cph","phreg"))
+
+    fitter <- match.arg(fitter,c("coxph","cph","phreg","glmnet"))
     # {{{ type
     surv.type <- match.arg(surv.type,c("hazard","survival"))
     # }}}
@@ -209,6 +210,7 @@ CSC <- function(formula,
         nmodels <- NC
     }else {
         nmodels <- 2}
+
     CoxModels <- lapply(1:nmodels,function(x){
         if (surv.type=="hazard"){
             if (x==1)
@@ -257,13 +259,35 @@ CSC <- function(formula,
         ## sep="~"))
         args <- list(formulaXX, data = workData)
         extra.args <- list(...)
+
+        ################## modif antho #################
+        ## glmnet
+
+        if (fitter=="glmnet"){
+            X <- as.matrix(data)
+            Y <- survival::Surv(workData$time, workData$status)
+            args <- list(x = X, y = Y)
+            if (length(list(...)$lambda)==0){
+                stop("lambda argument is needed for glmnet")
+            }
+            if (length(list(...)$lambda)>1){
+                extra.args$lambda <- list(...)$lambda[[x]]
+            }
+        }
+
+        ################################################
+
+
         if (fitter=="coxph"){
             fit <- do.call("coxph",c(args,list(x=TRUE,y=TRUE),extra.args))
         } else if(fitter=="cph") {
             fit <- do.call("cph",c(args,list(surv=TRUE,x=TRUE,y=TRUE),extra.args))
         } else if(fitter=="phreg") {
             fit <- do.call("phreg",c(args,extra.args))
+        } else if(fitter=="glmnet") {
+            fit <- do.call("glmnet",c(args,list(family="cox"),extra.args))
         }
+
         ## fit$formula <- terms(fit$formula)
         ## fit$call$formula <- terms(formulaXX)
         ## fit$call$formula <- fit$formula
